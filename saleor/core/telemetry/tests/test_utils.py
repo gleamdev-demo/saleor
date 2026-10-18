@@ -3,7 +3,13 @@ from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from opentelemetry.attributes import BoundedAttributes
-from opentelemetry.trace import INVALID_SPAN_CONTEXT, Link, SpanContext, TraceFlags
+from opentelemetry.trace import (
+    INVALID_SPAN_CONTEXT,
+    Link,
+    SpanContext,
+    TraceFlags,
+    TraceState,
+)
 from opentelemetry.util.types import AttributeValue
 
 from ..utils import (
@@ -212,6 +218,7 @@ def test_telemetry_task_context_to_dict_is_json_serializable():
                     "trace_id": 12345,
                     "span_id": 67890,
                     "trace_flags": 1,
+                    "trace_state": "",
                 },
                 "attributes": span_attributes,
             }
@@ -365,3 +372,42 @@ def test_task_with_telemetry_context_decorator_invalid_context(mock_set_global_a
     # then
     mock_set_global_attrs.assert_called_once_with({})
     mock_func.assert_called_once()
+
+
+def test_telemetry_task_context_trace_state_round_trip():
+    # given
+    trace_state = TraceState([("vendor1", "value1"), ("vendor2", "value2")])
+    span_context = SpanContext(
+        trace_id=12345,
+        span_id=67890,
+        is_remote=True,
+        trace_flags=TraceFlags(1),
+        trace_state=trace_state,
+    )
+    link = Link(context=span_context)
+    context = TelemetryTaskContext(links=[link], global_attributes={})
+
+    # when
+    data = context.to_dict()
+    restored = TelemetryTaskContext.from_dict(json.loads(json.dumps(data)))
+
+    # then
+    assert data["links"][0]["context"]["trace_state"] == "vendor1=value1,vendor2=value2"
+    assert restored.links is not None
+    assert len(restored.links) == 1
+    assert restored.links[0].context.trace_state == trace_state
+
+
+def test_telemetry_task_context_from_dict_without_trace_state():
+    # given
+    data = {
+        "links": [{"context": {"trace_id": 12345, "span_id": 67890, "trace_flags": 1}}],
+    }
+
+    # when
+    context = TelemetryTaskContext.from_dict(data)
+
+    # then
+    assert context.links is not None
+    assert len(context.links) == 1
+    assert len(context.links[0].context.trace_state) == 0
