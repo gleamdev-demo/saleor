@@ -17,7 +17,9 @@ suggestedPrompts:
   - Explain how an order moves from checkout to fulfillment in this codebase.
 
 allowedCodingAgents:
-  claude-code: []
+  claude-code:            # first model is the default
+    - claude-opus-5-5
+    - claude-sonnet-5-5
 
 repositories:
   - repo: gleamdev-demo/saleor
