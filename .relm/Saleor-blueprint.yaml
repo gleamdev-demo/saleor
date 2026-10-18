@@ -29,6 +29,7 @@ agentEnv:
   DEFAULT_CHANNEL_SLUG: default-channel
   HTTP_IP_FILTER_ALLOW_LOOPBACK_IPS: "True"
   PYTEST_ADDOPTS: --reuse-db -n 2   # test DBs are pre-built in the saleor-db image
+  GH_REPO: gleamdev-demo/saleor     # this repo is a fork: without it, `gh pr create` targets upstream saleor/saleor
 
 image:
   spec: Saleor workspace
