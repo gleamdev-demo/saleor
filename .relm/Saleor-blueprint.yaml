@@ -1,0 +1,46 @@
+version: 1
+blueprintId: 43146a09-c439-4751-9e79-a39aaca50454
+
+visibility: public
+
+instructions: |
+  You are working on Saleor, an open-source e-commerce platform (Python 3.12, Django, GraphQL API).
+  Follow AGENTS.md and the skills in .claude/skills/.
+  Dependencies are installed system-wide: run `pytest` and `./manage.py` directly, no virtualenv.
+  Postgres (seeded with the sample store) and Valkey run next to you on localhost.
+  Work on a new branch, keep the change focused, run the relevant tests, and open a pull request
+  with `gh pr create` when you are done.
+
+suggestedPrompts:
+  - Pick the oldest open issue in this repo, fix it, and open a pull request.
+  - Run the checkout tests and summarize any failures.
+  - Explain how an order moves from checkout to fulfillment in this codebase.
+
+allowedCodingAgents:
+  claude-code: []
+
+repositories:
+  - repo: gleamdev-demo/saleor
+    clone:
+      depth: 1
+
+agentEnv:
+  CACHE_URL: redis://localhost:6379/0
+  DEFAULT_CHANNEL_SLUG: default-channel
+  HTTP_IP_FILTER_ALLOW_LOOPBACK_IPS: "True"
+
+image:
+  spec: Saleor workspace
+
+agentResources:
+  spec: Demo 2 CPU
+
+services:
+  db:
+    image: ghcr.io/gleamdev-demo/saleor-db:latest
+    port: 5432
+    resources: { cpu: 500m, memory: 1Gi }
+  cache:
+    image: docker.io/valkey/valkey:8.1-alpine
+    port: 6379
+    resources: { cpu: 100m, memory: 256Mi }
