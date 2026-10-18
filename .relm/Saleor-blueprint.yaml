@@ -38,7 +38,7 @@ agentResources:
 
 services:
   db:
-    image: ghcr.io/gleamdev-demo/saleor-db:latest
+    image: ghcr.io/gleamdev-demo/saleor-db:3fbfd6c   # a build SHA, not :latest (nodes cache :latest)
     port: 5432
     resources: { cpu: 500m, memory: 1Gi }
   cache:
