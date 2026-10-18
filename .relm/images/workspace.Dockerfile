@@ -2,7 +2,9 @@
 # packages Relm's runtime contract needs (unzip, jq, libnsl2). Dependencies are installed
 # system-wide, as in the devcontainer, so `pytest` and `./manage.py` run with no venv.
 # Image spec user: vscode. Entrypoint: /usr/local/bin/entrypoint.sh
-FROM --platform=linux/amd64 mcr.microsoft.com/devcontainers/python:3.12
+# Pinned to bookworm: Relm's bundled sshd is built against OpenSSL 3.0; the default (trixie) tag ships
+# OpenSSL 3.5 and sshd exits at start ("OpenSSL version mismatch"), leaving the workspace without SSH.
+FROM --platform=linux/amd64 mcr.microsoft.com/devcontainers/python:3.12-bookworm
 
 ENV PYTHONUNBUFFERED=1
 
