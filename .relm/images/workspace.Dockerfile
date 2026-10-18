@@ -1,5 +1,5 @@
 # Relm workspace image for Saleor: the upstream devcontainer (.devcontainer/Dockerfile) plus the
-# packages Relm's runtime contract needs (unzip, jq, libnsl2). Dependencies are installed
+# packages Relm needs (unzip, jq, libnsl2; tmux for `relm workspaces open --command`). Deps are installed
 # system-wide, as in the devcontainer, so `pytest` and `./manage.py` run with no venv.
 # Image spec user: vscode. Entrypoint: /usr/local/bin/entrypoint.sh
 # Pinned to bookworm: Relm's bundled sshd is built against OpenSSL 3.0; the default (trixie) tag ships
@@ -12,7 +12,7 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends \
   libffi8 libgdk-pixbuf-2.0-0 liblcms2-2 libopenjp2-7 libssl3 libtiff6 libwebp7 libpq5 \
   shared-mime-info libmagic1 media-types \
-  unzip jq libnsl2 postgresql-client \
+  unzip jq libnsl2 postgresql-client tmux \
   && rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:0.12.1@sha256:cf4eedcaa81655197f625739489effcbe71b61ceb1506f332c3facae5deceded \
