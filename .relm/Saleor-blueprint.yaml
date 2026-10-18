@@ -28,6 +28,7 @@ agentEnv:
   CACHE_URL: redis://localhost:6379/0
   DEFAULT_CHANNEL_SLUG: default-channel
   HTTP_IP_FILTER_ALLOW_LOOPBACK_IPS: "True"
+  PYTEST_ADDOPTS: --reuse-db -n 2   # test DBs are pre-built in the saleor-db image
 
 image:
   spec: Saleor workspace

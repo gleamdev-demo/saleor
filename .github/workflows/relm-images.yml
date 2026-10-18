@@ -1,6 +1,8 @@
 # Builds the two images the Relm demo blueprint runs:
 #   saleor-workspace  the agent container (Python 3.12 + all dependencies)
-#   saleor-db         Postgres 15 with migrations applied and the populatedb sample store loaded
+#   saleor-db         Postgres 15 with migrations applied, the populatedb sample store loaded, and the
+#                     pytest databases (test_saleor_gw0/gw1) pre-built, so `pytest --reuse-db -n 2`
+#                     starts in seconds instead of re-running every migration
 # Upstream Saleor workflows are parked in .github/upstream-workflows/ so they don't run on this fork.
 name: Relm demo images
 on:
@@ -37,9 +39,12 @@ jobs:
           docker run -d --name db --network saleor \
             -e POSTGRES_USER=saleor -e POSTGRES_PASSWORD=saleor -e PGDATA=/pgdata postgres:15
           until docker exec db pg_isready -U saleor; do sleep 1; done
-          docker run --rm --network saleor -v "$PWD:/app" -w /app \
-            -e DATABASE_URL=postgres://saleor:saleor@db/saleor -e SECRET_KEY=changeme \
-            $WS_IMAGE:latest sh -c "python manage.py migrate --no-input && python manage.py populatedb --createsuperuser"
+          # Shares the db container's network so Postgres is on localhost, as in a workspace
+          # (and as pytest-socket's --allow-hosts expects)
+          docker run --rm --network container:db -v "$PWD:/app" -w /app -e SECRET_KEY=changeme \
+            $WS_IMAGE:latest sh -c "python manage.py migrate --no-input \
+              && python manage.py populatedb --createsuperuser \
+              && pytest -q -p no:cacheprovider --reuse-db -n 2 saleor/checkout/tests/test_utils.py"
           docker exec db psql -U saleor -c 'CHECKPOINT;'
           docker stop db
           docker commit --change 'ENV PGDATA=/pgdata' --change "LABEL org.opencontainers.image.source=$SOURCE" \

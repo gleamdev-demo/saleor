@@ -22,6 +22,14 @@ COPY uv.lock pyproject.toml /tmp/saleor/
 RUN cd /tmp/saleor && uv sync --locked --no-install-project --no-editable \
   && rm -rf /tmp/saleor /root/.cache/uv
 
+# GitHub CLI, so the agent can open pull requests (the platform default image ships it)
+RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+    -o /usr/share/keyrings/githubcli-archive-keyring.gpg \
+  && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+    > /etc/apt/sources.list.d/github-cli.list \
+  && apt-get update && apt-get install -y --no-install-recommends gh \
+  && rm -rf /var/lib/apt/lists/*
+
 # The base image's mypy clashes with the version in uv.lock (same as upstream)
 RUN pipx uninstall mypy || true
 
