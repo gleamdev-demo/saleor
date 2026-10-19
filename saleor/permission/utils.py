@@ -1,6 +1,7 @@
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Union
 
+from ..core.utils.requestor import get_user_or_app_from_context
 from .auth_filters import AuthorizationFilters, resolve_authorization_filter_fn
 from .enums import AccountPermissions, BasePermissionEnum
 
@@ -50,10 +51,6 @@ def _get_result_of_permissions_checks(
     context, permissions: Iterable[BasePermissionEnum]
 ) -> Iterable[bool]:
     permissions = [p for p in permissions if not isinstance(p, AuthorizationFilters)]
-
-    # TODO: move this function from graphql to core
-    from saleor.graphql.utils import get_user_or_app_from_context
-
     requestor = get_user_or_app_from_context(context)
 
     if not permissions:
