@@ -1,4 +1,18 @@
+from typing import TYPE_CHECKING, Protocol
+
 from promise import Promise
+
+if TYPE_CHECKING:
+    from ..account.models import User
+    from ..app.models import App
+
+
+class RequestorContext(Protocol):
+    @property
+    def app(self) -> "App | None": ...
+
+    @property
+    def user(self) -> "User | None": ...
 
 
 def with_promise_context(func):
@@ -16,3 +30,11 @@ def with_promise_context(func):
         return promise.get()
 
     return wrapper
+
+
+def get_user_or_app_from_context(context: RequestorContext) -> "App | User | None":
+    """Return the app or the user that performs the request.
+
+    App takes precedence; user can be None when request is anonymous.
+    """
+    return context.app or context.user
