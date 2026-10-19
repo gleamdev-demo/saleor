@@ -3,7 +3,13 @@ from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from opentelemetry.attributes import BoundedAttributes
-from opentelemetry.trace import INVALID_SPAN_CONTEXT, Link, SpanContext, TraceFlags
+from opentelemetry.trace import (
+    INVALID_SPAN_CONTEXT,
+    Link,
+    SpanContext,
+    TraceFlags,
+    TraceState,
+)
 from opentelemetry.util.types import AttributeValue
 
 from ..utils import (
@@ -168,6 +174,7 @@ def test_telemetry_task_context_to_dict():
     assert data["links"][0]["context"]["trace_id"] == 12345
     assert data["links"][0]["context"]["span_id"] == 67890
     assert data["links"][0]["context"]["trace_flags"] == 1
+    assert data["links"][0]["context"]["trace_state"] == ""
     assert data["links"][0]["attributes"] == {"link_attr": "link_value"}
     assert data["global_attributes"] == global_attrs
 
@@ -212,6 +219,7 @@ def test_telemetry_task_context_to_dict_is_json_serializable():
                     "trace_id": 12345,
                     "span_id": 67890,
                     "trace_flags": 1,
+                    "trace_state": "",
                 },
                 "attributes": span_attributes,
             }
@@ -221,6 +229,74 @@ def test_telemetry_task_context_to_dict_is_json_serializable():
         json.dumps(data)
     except Exception as e:
         pytest.fail(f"Failed to serialize telemetry context to JSON: {e}")
+
+
+def test_telemetry_task_context_to_dict_with_trace_state():
+    # given
+    trace_state = TraceState([("vendor1", "value1"), ("vendor2", "value2")])
+    span_context = SpanContext(
+        trace_id=12345,
+        span_id=67890,
+        is_remote=True,
+        trace_flags=TraceFlags(1),
+        trace_state=trace_state,
+    )
+    link = Link(context=span_context)
+    context = TelemetryTaskContext(links=[link], global_attributes={})
+
+    # when
+    data = context.to_dict()
+
+    # then
+    assert data["links"][0]["context"]["trace_state"] == trace_state.to_header()
+
+
+def test_telemetry_task_context_trace_state_round_trip():
+    # given
+    trace_state = TraceState([("vendor1", "value1"), ("vendor2", "value2")])
+    span_context = SpanContext(
+        trace_id=12345,
+        span_id=67890,
+        is_remote=True,
+        trace_flags=TraceFlags(1),
+        trace_state=trace_state,
+    )
+    context = TelemetryTaskContext(
+        links=[Link(context=span_context)], global_attributes={}
+    )
+
+    # when
+    restored = TelemetryTaskContext.from_dict(json.loads(json.dumps(context.to_dict())))
+
+    # then
+    assert restored.links is not None
+    assert len(restored.links) == 1
+    assert restored.links[0].context.trace_state == trace_state
+
+
+def test_telemetry_task_context_from_dict_without_trace_state():
+    # given
+    data = {
+        "links": [
+            {
+                "context": {
+                    "trace_id": 12345,
+                    "span_id": 67890,
+                    "trace_flags": 1,
+                },
+                "attributes": {},
+            }
+        ],
+        "global_attributes": {},
+    }
+
+    # when
+    context = TelemetryTaskContext.from_dict(data)
+
+    # then
+    assert context.links is not None
+    assert len(context.links) == 1
+    assert context.links[0].context.trace_state == TraceState()
 
 
 def test_telemetry_task_context_from_dict():
