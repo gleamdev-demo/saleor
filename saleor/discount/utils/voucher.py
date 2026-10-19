@@ -39,6 +39,7 @@ from ..models import (
     VoucherChannelListing,
     VoucherCode,
     VoucherCustomer,
+    VoucherTranslation,
 )
 from .manual_discount import apply_discount_to_value
 from .shared import update_discount
@@ -80,6 +81,21 @@ def is_line_level_voucher(voucher: Voucher | None):
     return voucher and (
         voucher.type == VoucherType.SPECIFIC_PRODUCT or voucher.apply_once_per_order
     )
+
+
+def get_voucher_translated_name(
+    voucher: Voucher,
+    language_code: str,
+    database_connection_name: str = settings.DATABASE_CONNECTION_DEFAULT_NAME,
+) -> str:
+    """Return the voucher name translated to the language, or "" if not translated."""
+    translated_name = (
+        VoucherTranslation.objects.using(database_connection_name)
+        .filter(voucher_id=voucher.pk, language_code=language_code)
+        .values_list("name", flat=True)
+        .first()
+    )
+    return translated_name or ""
 
 
 def increase_voucher_usage(
@@ -549,6 +565,9 @@ def create_or_update_discount_object_from_order_level_voucher(
 
     discount_reason = f"Voucher code: {order.voucher_code}"
     discount_name = voucher.name or ""
+    translated_name = get_voucher_translated_name(
+        voucher, order.language_code, database_connection_name
+    )
 
     discount_data = DiscountInfo(
         voucher=voucher,
@@ -560,8 +579,7 @@ def create_or_update_discount_object_from_order_level_voucher(
         name=discount_name,
         type=DiscountType.VOUCHER,
         voucher_code=order.voucher_code,
-        # TODO (SHOPX-914): set translated voucher name
-        translated_name="",
+        translated_name=translated_name,
     )
 
     with allow_writer():
@@ -575,8 +593,7 @@ def create_or_update_discount_object_from_order_level_voucher(
                 rule=None,
                 voucher=voucher,
                 discount_name=discount_name,
-                # TODO (SHOPX-914): set translated voucher name
-                translated_name="",
+                translated_name=translated_name,
                 discount_reason=discount_reason,
                 discount_amount=discount_amount.amount,
                 value=voucher_channel_listing.discount_value,
@@ -636,6 +653,10 @@ def prepare_line_discount_objects_for_voucher(
     if not lines_info:
         return None
 
+    # all lines belong to the same order, so they share the language code
+    language_code = lines_info[0].line.order.language_code
+    translated_names: dict[int, str] = {}
+
     for line_info in lines_info:
         line = line_info.line
         voucher = cast(Voucher, line_info.voucher)
@@ -685,14 +706,20 @@ def prepare_line_discount_objects_for_voucher(
         discount_amount = discount_amount.amount
         code = line_info.voucher_code
         discount_reason = f"Voucher code: {code}"
+        translated_name = ""
+        if voucher:
+            if voucher.pk not in translated_names:
+                translated_names[voucher.pk] = get_voucher_translated_name(
+                    voucher, language_code
+                )
+            translated_name = translated_names[voucher.pk]
 
         if discount_to_update:
             update_discount(
                 rule=None,
                 voucher=voucher,
                 discount_name=discount_name,
-                # TODO (SHOPX-914): set translated voucher name
-                translated_name="",
+                translated_name=translated_name,
                 discount_reason=discount_reason,
                 discount_amount=discount_amount,
                 value=discount_value,
@@ -712,7 +739,7 @@ def prepare_line_discount_objects_for_voucher(
                 amount_value=discount_amount,
                 currency=line.currency,
                 name=discount_name,
-                translated_name=None,
+                translated_name=translated_name,
                 reason=discount_reason,
                 voucher=voucher,
                 unique_type=DiscountType.VOUCHER,
