@@ -946,7 +946,9 @@ def remove_discount_from_order_line(order_line: OrderLine, order: "Order"):
         and not is_shipping_voucher(voucher)
     ):
         lines_info = fetch_draft_order_lines_info(order)
-        create_or_update_line_discount_objects_from_voucher(lines_info)
+        create_or_update_line_discount_objects_from_voucher(
+            lines_info, order.language_code
+        )
         lines = [line_info.line for line_info in lines_info]
         OrderLine.objects.bulk_update(lines, ["base_unit_price_amount"])
 
