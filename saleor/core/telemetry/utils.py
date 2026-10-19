@@ -7,7 +7,7 @@ from enum import Enum
 from functools import wraps
 
 from django.conf import settings
-from opentelemetry.trace import Link, SpanContext, TraceFlags
+from opentelemetry.trace import Link, SpanContext, TraceFlags, TraceState
 from opentelemetry.util.types import Attributes, AttributeValue
 
 from .saleor_attributes import OPERATION_NAME
@@ -87,7 +87,6 @@ def enrich_span_with_global_attributes(
 class TelemetryTaskContext:
     """Carries telemetry context when propagated to Celery tasks."""
 
-    # TODO add TraceState support
     links: Sequence[Link] | None = None
     global_attributes: dict[str, AttributeValue] = field(
         default_factory=get_global_attributes
@@ -101,6 +100,7 @@ class TelemetryTaskContext:
                     "trace_id": link.context.trace_id,
                     "span_id": link.context.span_id,
                     "trace_flags": int(link.context.trace_flags),
+                    "trace_state": link.context.trace_state.to_header(),
                 },
                 "attributes": dict(link.attributes) if link.attributes else {},
             }
@@ -124,6 +124,10 @@ class TelemetryTaskContext:
                     span_id=link["context"]["span_id"],
                     is_remote=True,
                     trace_flags=TraceFlags(link["context"]["trace_flags"]),
+                    # contexts serialized before trace state support lack the key
+                    trace_state=TraceState.from_header(
+                        [link["context"].get("trace_state", "")]
+                    ),
                 )
                 if not context.is_valid:
                     # filter out links to invalid spans
