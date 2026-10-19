@@ -28,6 +28,7 @@ repositories:
       depth: 1
 
 agentEnv:
+  LANG: C.UTF-8                     # the image has no locale; under POSIX, bash miscounts the prompt's ➜ and garbles wrapped lines
   CACHE_URL: redis://localhost:6379/0
   DEFAULT_CHANNEL_SLUG: default-channel
   HTTP_IP_FILTER_ALLOW_LOOPBACK_IPS: "True"
