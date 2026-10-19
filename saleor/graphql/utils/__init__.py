@@ -2,7 +2,7 @@ import hashlib
 import logging
 import traceback
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from uuid import UUID
 
 import graphene
@@ -15,16 +15,12 @@ from graphql.error import GraphQLError
 from graphql.error import format_error as format_graphql_error
 from jwt import InvalidTokenError
 
-from ...account.models import User
-from ...app.models import App
+from ...core.auth import get_user_or_app_from_context as get_user_or_app_from_context
 from ...core.exceptions import CircularSubscriptionSyncEvent, PermissionDenied
 from ..core.enums import PermissionEnum
 from ..core.types import TYPES_WITH_DOUBLE_ID_AVAILABLE, Permission
 from ..core.utils import from_global_id_or_error
 from ..core.validators.query_cost import QueryCostError
-
-if TYPE_CHECKING:
-    from ..core import SaleorContext
 
 unhandled_errors_logger = logging.getLogger("saleor.graphql.errors.unhandled")
 handled_errors_logger = logging.getLogger("saleor.graphql.errors.handled")
@@ -199,12 +195,6 @@ def format_permissions_for_display(permissions):
         for data in permissions_data
     ]
     return formatted_permissions
-
-
-def get_user_or_app_from_context(context: "SaleorContext") -> App | User | None:
-    # order is important
-    # app can be None but user if None then is passed as anonymous
-    return context.app or context.user
 
 
 def requestor_is_superuser(requestor):
