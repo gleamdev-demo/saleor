@@ -1,13 +1,19 @@
 from decimal import Decimal
 
 import graphene
+import pytest
 
 from ....core.prices import Money, quantize_price
 from ....core.taxes import zero_money
 from ....order import OrderStatus
 from ....order.calculations import fetch_order_prices_if_expired
 from ... import DiscountType, DiscountValueType, VoucherType
-from ...models import OrderDiscount, OrderLineDiscount, PromotionRule
+from ...models import (
+    OrderDiscount,
+    OrderLineDiscount,
+    PromotionRule,
+    VoucherTranslation,
+)
 from ...utils.voucher import create_or_update_voucher_discount_objects_for_order
 
 
@@ -488,7 +494,6 @@ def test_create_discount_for_voucher_entire_order_fixed(
     assert discount.name == voucher.name
     assert discount.type == DiscountType.VOUCHER
     assert discount.voucher_code == code
-    # TODO (SHOPX-914): set translated voucher name
     assert discount.translated_name == ""
 
     assert order.base_shipping_price == shipping_price
@@ -608,7 +613,6 @@ def test_create_discount_for_voucher_entire_order_multiple_lines(
     assert discount.name == voucher.name
     assert discount.type == DiscountType.VOUCHER
     assert discount.voucher_code == code
-    # TODO (SHOPX-914): set translated voucher name
     assert discount.translated_name == ""
 
     assert order.base_shipping_price == shipping_price
@@ -702,7 +706,6 @@ def test_create_discount_for_voucher_entire_order_percentage(
     assert discount.name == voucher.name
     assert discount.type == DiscountType.VOUCHER
     assert discount.voucher_code == code
-    # TODO (SHOPX-914): set translated voucher name
     assert discount.translated_name == ""
 
     assert order.base_shipping_price == shipping_price
@@ -816,7 +819,6 @@ def test_create_discount_for_voucher_shipping_fixed(
     assert discount.name == voucher.name
     assert discount.type == DiscountType.VOUCHER
     assert discount.voucher_code == code
-    # TODO (SHOPX-914): set translated voucher name
     assert discount.translated_name == ""
 
     assert order.undiscounted_base_shipping_price_amount == undiscounted_shipping_price
@@ -894,7 +896,6 @@ def test_create_discount_for_voucher_shipping_percentage(
     assert discount.name == voucher.name
     assert discount.type == DiscountType.VOUCHER
     assert discount.voucher_code == code
-    # TODO (SHOPX-914): set translated voucher name
     assert discount.translated_name == ""
 
     assert order.undiscounted_base_shipping_price.amount == undiscounted_shipping_price
@@ -1083,3 +1084,134 @@ def test_create_discount_for_voucher_specific_product_line_with_catalogue_discou
         line_1.unit_discount_reason
         == f"Promotion: {promotion_id}; Voucher code: {order.voucher_code}"
     )
+
+
+@pytest.mark.parametrize(
+    ("_case", "translation_language_code", "is_translated"),
+    [
+        ("translation_in_order_language", "fr", True),
+        ("translation_in_other_language", "de", False),
+    ],
+)
+def test_create_discount_for_voucher_entire_order_translated_name(
+    _case, translation_language_code, is_translated, order_with_lines, voucher
+):
+    # given
+    assert voucher.type == VoucherType.ENTIRE_ORDER
+
+    order = order_with_lines
+    order.status = OrderStatus.UNCONFIRMED
+    order.language_code = "fr"
+    order.voucher = voucher
+    order.voucher_code = voucher.codes.first().code
+
+    translation = VoucherTranslation.objects.create(
+        voucher=voucher,
+        language_code=translation_language_code,
+        name="Translated voucher name",
+    )
+
+    # when
+    create_or_update_voucher_discount_objects_for_order(order)
+
+    # then
+    discount = OrderDiscount.objects.get(order=order)
+    assert discount.translated_name == (translation.name if is_translated else "")
+
+
+def test_update_discount_for_voucher_entire_order_translated_name(
+    order_with_lines, voucher
+):
+    # given
+    assert voucher.type == VoucherType.ENTIRE_ORDER
+
+    order = order_with_lines
+    order.status = OrderStatus.UNCONFIRMED
+    order.language_code = "fr"
+    order.voucher = voucher
+    order.voucher_code = voucher.codes.first().code
+
+    create_or_update_voucher_discount_objects_for_order(order)
+    discount = OrderDiscount.objects.get(order=order)
+    assert discount.translated_name == ""
+
+    translation = VoucherTranslation.objects.create(
+        voucher=voucher, language_code=order.language_code, name="Nom du bon"
+    )
+
+    # when
+    create_or_update_voucher_discount_objects_for_order(order)
+
+    # then
+    discount.refresh_from_db(fields=("translated_name",))
+    assert discount.translated_name == translation.name
+
+
+@pytest.mark.parametrize(
+    ("_case", "translation_language_code", "is_translated"),
+    [
+        ("translation_in_order_language", "fr", True),
+        ("translation_in_other_language", "de", False),
+    ],
+)
+def test_create_discount_for_voucher_specific_product_translated_name(
+    _case,
+    translation_language_code,
+    is_translated,
+    order_with_lines,
+    voucher_specific_product_type,
+):
+    # given
+    order = order_with_lines
+    order.status = OrderStatus.UNCONFIRMED
+    order.language_code = "fr"
+    voucher = voucher_specific_product_type
+
+    discounted_line, _ = order.lines.all()
+    voucher.variants.add(discounted_line.variant)
+    order.voucher = voucher
+    order.voucher_code = voucher.codes.first().code
+
+    translation = VoucherTranslation.objects.create(
+        voucher=voucher,
+        language_code=translation_language_code,
+        name="Translated voucher name",
+    )
+
+    # when
+    create_or_update_voucher_discount_objects_for_order(order)
+
+    # then
+    line_discount = OrderLineDiscount.objects.get(line__order=order)
+    assert line_discount.line_id == discounted_line.pk
+    assert line_discount.translated_name == (translation.name if is_translated else "")
+
+
+def test_update_discount_for_voucher_specific_product_translated_name(
+    order_with_lines, voucher_specific_product_type
+):
+    # given
+    order = order_with_lines
+    order.status = OrderStatus.UNCONFIRMED
+    order.language_code = "fr"
+    voucher = voucher_specific_product_type
+
+    discounted_line, _ = order.lines.all()
+    voucher.variants.add(discounted_line.variant)
+    order.voucher = voucher
+    order.voucher_code = voucher.codes.first().code
+
+    create_or_update_voucher_discount_objects_for_order(order)
+    line_discount = OrderLineDiscount.objects.get(line__order=order)
+    assert line_discount.translated_name == ""
+
+    translation = VoucherTranslation.objects.create(
+        voucher=voucher, language_code=order.language_code, name="Nom du bon"
+    )
+
+    # when
+    create_or_update_voucher_discount_objects_for_order(order)
+
+    # then
+    line_discount.refresh_from_db(fields=("translated_name",))
+    assert line_discount.translated_name == translation.name

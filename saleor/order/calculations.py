@@ -736,9 +736,13 @@ def refresh_order_base_prices_and_discounts(
         reattach_apply_once_per_order_voucher_info(
             lines_info, initial_cheapest_line, order
         )
-        create_or_update_line_discount_objects_from_voucher(lines_info)
+        create_or_update_line_discount_objects_from_voucher(
+            lines_info, order.language_code
+        )
     else:
-        create_or_update_line_discount_objects_from_voucher(lines_info_to_update)
+        create_or_update_line_discount_objects_from_voucher(
+            lines_info_to_update, order.language_code
+        )
 
     # update unit discount fields based on updated discounts
     update_unit_discount_data_on_order_lines_info(lines_info)
