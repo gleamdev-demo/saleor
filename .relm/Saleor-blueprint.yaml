@@ -8,8 +8,9 @@ instructions: |
   Follow AGENTS.md and the skills in .claude/skills/.
   Dependencies are installed system-wide: run `pytest` and `./manage.py` directly, no virtualenv.
   Postgres (seeded with the sample store) and Valkey run next to you on localhost.
-  Work on a new branch, keep the change focused, run the relevant tests, and open a pull request
-  with `gh pr create` when you are done.
+  Work on a new branch, keep the change focused, and run only the tests the issue names: the full
+  suite takes over 20 minutes, so leave it to CI. Push the branch, then open the pull request with
+  `gh pr create --head <branch>` (in this fork, gh doesn't pick up the pushed branch on its own).
 
 suggestedPrompts:
   - Pick the oldest open issue in this repo, fix it, and open a pull request.
