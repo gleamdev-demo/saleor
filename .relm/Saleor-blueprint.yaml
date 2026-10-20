@@ -37,6 +37,7 @@ agentEnv:
 
 connectors:
   - name: Saleor Production   # the live store's API; no `access:`, so read and write
+  - name: Orders API (production)   # Act 5's production stand-in (relmhq.com); read and write
 
 image:
   spec: Saleor workspace
