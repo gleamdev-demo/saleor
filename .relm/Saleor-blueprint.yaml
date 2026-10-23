@@ -38,6 +38,8 @@ agentEnv:
 connectors:
   - name: Saleor Production   # the live store's API; no `access:`, so read and write
   - name: Orders API (production)   # Act 5's production stand-in (relmhq.com); read and write
+
+mcpServers:
   - name: Linear              # 3.6: read the issue Relm is tagged on and comment back (save_comment is classed read)
     access: read
 
